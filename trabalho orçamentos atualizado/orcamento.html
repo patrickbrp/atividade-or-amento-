@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Criar Orçamento</title>
+  <link rel="stylesheet" href="estilo.css">
+</head>
+<body>
+
+<h1>Criar Orçamento</h1>
+
+<form id="orcamentoForm">
+  <label for="usuario">Selecionar Usuário:</label>
+  <select id="usuario" required>
+    <option value="">-- Selecione um usuário --</option>
+    <option value="joao">João Silva</option>
+    <option value="maria">Maria Costa</option>
+    <option value="ana">Ana Souza</option>
+  </select>
+
+  <label for="nome">Nome do Orçamento:</label>
+  <input type="text" id="nome" required>
+
+  <label for="descricao">Descrição:</label>
+  <textarea id="descricao" rows="3"></textarea>
+
+  <label for="data">Data:</label>
+  <input type="date" id="data" required>
+
+  <label for="fornecedor">Selecionar Fornecedor:</label>
+  <select id="fornecedor" required>
+    <option value="">-- Selecione um fornecedor --</option>
+  </select>
+
+  <label for="produto">Selecionar Produto:</label>
+  <select id="produto" required>
+    <option value="">-- Selecione um produto --</option>
+  </select>
+
+  <label for="quantidade">Quantidade:</label>
+  <input type="number" id="quantidade" min="1" value="1" required>
+
+  <label for="valor">Valor Total (R$):</label>
+  <input type="number" id="valor" readonly>
+
+  <button type="submit">Salvar Orçamento</button>
+</form>
+
+<button class="exportar" onclick="exportarJSON()">📁 Exportar Orçamentos (.json)</button>
+
+<div class="output" id="saida"></div>
+
+<script>
+  const form = document.getElementById("orcamentoForm");
+  const saida = document.getElementById("saida");
+  const fornecedorSelect = document.getElementById("fornecedor");
+  const produtoSelect = document.getElementById("produto");
+  const quantidadeInput = document.getElementById("quantidade");
+  const valorInput = document.getElementById("valor");
+
+  const fornecedores = [
+    {
+      id: "f1",
+      nome: "Fornecedor A",
+      produtos: [
+        { id: "p1", nome: "Produto A1", valor: 100 },
+        { id: "p2", nome: "Produto A2", valor: 150 }
+      ]
+    },
+    {
+      id: "f2",
+      nome: "Fornecedor B",
+      produtos: [
+        { id: "p3", nome: "Produto B1", valor: 200 },
+        { id: "p4", nome: "Produto B2", valor: 250 }
+      ]
+    }
+  ];
+
+  fornecedores.forEach(f => {
+    const option = document.createElement("option");
+    option.value = f.id;
+    option.textContent = f.nome;
+    fornecedorSelect.appendChild(option);
+  });
+
+  fornecedorSelect.addEventListener("change", () => {
+    const fornecedorSelecionado = fornecedores.find(f => f.id === fornecedorSelect.value);
+    produtoSelect.innerHTML = '<option value="">-- Selecione um produto --</option>';
+
+    if (fornecedorSelecionado) {
+      fornecedorSelecionado.produtos.forEach(p => {
+        const option = document.createElement("option");
+        option.value = p.id;
+        option.textContent = `${p.nome} - R$ ${p.valor}`;
+        option.setAttribute('data-valor', p.valor);
+        produtoSelect.appendChild(option);
+      });
+    }
+    calcularValor();
+  });
+
+  produtoSelect.addEventListener("change", calcularValor);
+  quantidadeInput.addEventListener("input", calcularValor);
+
+  function calcularValor() {
+    const produtoOption = produtoSelect.selectedOptions[0];
+    const valorUnitario = produtoOption ? parseFloat(produtoOption.getAttribute('data-valor')) : 0;
+    const quantidade = parseInt(quantidadeInput.value) || 1;
+    valorInput.value = (valorUnitario * quantidade).toFixed(2);
+  }
+
+  let orcamentos = JSON.parse(localStorage.getItem("orcamentos")) || [];
+  mostrarOrcamentos();
+
+  form.addEventListener("submit", function(event) {
+    event.preventDefault();
+
+    const usuario = document.getElementById("usuario").value;
+    const nome = document.getElementById("nome").value;
+    const descricao = document.getElementById("descricao").value;
+    const data = document.getElementById("data").value;
+    const fornecedor = fornecedorSelect.options[fornecedorSelect.selectedIndex].textContent;
+    const produto = produtoSelect.options[produtoSelect.selectedIndex].textContent;
+    const quantidade = quantidadeInput.value;
+    const valor = valorInput.value;
+
+    if (!usuario || !produto || !fornecedor) {
+      alert("Por favor, preencha todos os campos obrigatórios.");
+      return;
+    }
+
+    const novoOrcamento = {
+      usuario,
+      nome,
+      descricao,
+      data,
+      fornecedor,
+      produto,
+      quantidade,
+      valor
+    };
+
+    orcamentos.push(novoOrcamento);
+    localStorage.setItem("orcamentos", JSON.stringify(orcamentos));
+    mostrarOrcamentos();
+    form.reset();
+    produtoSelect.innerHTML = '<option value="">-- Selecione um produto --</option>';
+    valorInput.value = "";
+  });
+
+  function mostrarOrcamentos() {
+    if (orcamentos.length === 0) {
+      saida.innerHTML = "<p>Nenhum orçamento salvo ainda.</p>";
+      return;
+    }
+
+    saida.innerHTML = "<h3>Orçamentos Salvos:</h3>" + orcamentos.map((o, index) => `
+      <p><strong>${index + 1}.</strong> Usuário: ${o.usuario} | Nome: ${o.nome} | Produto: ${o.produto} | Quantidade: ${o.quantidade} | Valor: R$ ${o.valor} | Fornecedor: ${o.fornecedor} | Data: ${o.data}</p>
+      <p><em>${o.descricao}</em></p>
+      <hr>
+    `).join("");
+  }
+
+  function exportarJSON() {
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(orcamentos, null, 2));
+    const link = document.createElement('a');
+    link.setAttribute("href", dataStr);
+    link.setAttribute("download", "orcamentos.json");
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+  }
+</script>
+
+</body>
+</html>
+
